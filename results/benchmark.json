@@ -1,0 +1,8 @@
+{
+  "n_queries": 200,
+  "simulation_total_sec": 15.240651230999987,
+  "simulation_per_query_ms": 76.20325615499993,
+  "surrogate_total_sec": 0.026093747999993866,
+  "surrogate_per_query_ms": 0.13046873999996933,
+  "speedup_factor": 584.0729063147069
+}
