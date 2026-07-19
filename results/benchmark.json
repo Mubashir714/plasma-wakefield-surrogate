@@ -1,8 +1,8 @@
 {
-  "n_queries": 200,
-  "simulation_total_sec": 15.240651230999987,
-  "simulation_per_query_ms": 76.20325615499993,
-  "surrogate_total_sec": 0.026093747999993866,
-  "surrogate_per_query_ms": 0.13046873999996933,
-  "speedup_factor": 584.0729063147069
+  "n_queries": 15,
+  "simulation_total_sec": 78.09273972599999,
+  "simulation_per_query_ms": 5206.182648399999,
+  "surrogate_total_sec": 0.01776025000003756,
+  "surrogate_per_query_ms": 1.1840166666691705,
+  "speedup_factor": 4397.051827864745
 }

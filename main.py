@@ -25,9 +25,9 @@ import visualize
 
 def run_all():
     print("=" * 60)
-    print("STEP 1/4: Generating simulation dataset")
+    print("STEP 1/4: Generating simulation dataset (real FBPIC runs, ~8-10 min)")
     print("=" * 60)
-    dataset.build_datasets(n_samples=1200)
+    dataset.build_datasets(n_samples=100)
 
     print("\n" + "=" * 60)
     print("STEP 2/4: Training surrogate models")
@@ -37,7 +37,7 @@ def run_all():
     print("\n" + "=" * 60)
     print("STEP 3/4: Benchmarking simulation vs surrogate")
     print("=" * 60)
-    benchmark.run_benchmark(n_queries=200)
+    benchmark.run_benchmark(n_queries=15)
 
     print("\n" + "=" * 60)
     print("STEP 4/4: Generating figures")

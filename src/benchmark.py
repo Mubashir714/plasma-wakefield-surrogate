@@ -3,12 +3,14 @@ benchmark.py
 ============
 
 Compares wall-clock time of:
-  (a) running the full nonlinear physics simulation
+  (a) running a real FBPIC particle-in-cell simulation
   (b) querying the trained scalar surrogate model
 
 for a batch of parameter points, to quantify the speedup a surrogate offers
 inside e.g. an optimization or parameter-scan loop (exactly the kind of loop
-used in beam-loading / transformer-ratio optimization studies).
+used in beam-loading / transformer-ratio optimization studies). Because each
+simulation run now costs several real seconds (vs. milliseconds for the toy
+analytical model), n_queries is kept small by default.
 """
 
 import os
@@ -17,7 +19,7 @@ import json
 import joblib
 import numpy as np
 
-from physics import nonlinear_wakefield
+from fbpic_sim import run_fbpic_wakefield
 from dataset import sample_parameter_space
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -25,14 +27,14 @@ MODEL_DIR = os.path.join(BASE_DIR, "models")
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
 
 
-def run_benchmark(n_queries: int = 200, seed: int = 123):
+def run_benchmark(n_queries: int = 15, seed: int = 123):
     kp_sigma_z_arr, Q_hat_arr = sample_parameter_space(n_queries, seed)
 
     # --- Time the full simulation ---
     t0 = time.perf_counter()
     sim_peaks = []
     for kp_sigma_z, Q_hat in zip(kp_sigma_z_arr, Q_hat_arr):
-        result = nonlinear_wakefield(kp_sigma_z, Q_hat)
+        result = run_fbpic_wakefield(kp_sigma_z, Q_hat)
         sim_peaks.append(result.peak_Ez)
     sim_time = time.perf_counter() - t0
 

@@ -64,9 +64,12 @@ def train_scalar_surrogates():
     }
 
     # --- MLP neural network ---
+    # NOTE: with a real (small, ~100-sample) PIC dataset, early_stopping carves off
+    # an already-small validation split and starves the MLP; disabling it and adding
+    # a little L2 regularization (alpha) works much better at this dataset size.
     t0 = time.perf_counter()
-    mlp = MLPRegressor(hidden_layer_sizes=(64, 64), activation="relu",
-                        max_iter=3000, random_state=0, early_stopping=True)
+    mlp = MLPRegressor(hidden_layer_sizes=(32, 32), activation="relu", alpha=1e-2,
+                        max_iter=5000, random_state=0, early_stopping=False)
     mlp.fit(X_train_s, y_train)
     mlp_train_time = time.perf_counter() - t0
     mlp_pred = mlp.predict(X_test_s)
