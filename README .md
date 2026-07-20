@@ -1,56 +1,74 @@
 # Plasma Wakefield Surrogate Modeling
 
-A small computational-science project combining **real particle-in-cell (PIC)
-plasma physics simulation** with **machine learning surrogates**, built as a
-proof of concept for accelerating parameter scans in plasma wakefield
-accelerator (PWFA) design.
+**Real particle-in-cell (PIC) plasma physics simulation + machine learning
+surrogates**, built as a proof of concept for accelerating parameter scans
+in plasma wakefield accelerator (PWFA) design.
 
-> **This version trains on real PIC simulation data**, generated with
+> This project trains on **real PIC simulation data**, generated with
 > [FBPIC](https://github.com/fbpic/fbpic) — a published, open-source,
 > quasi-cylindrical particle-in-cell code used in real accelerator physics
 > research. It is not QuickPIC (the quasi-static code used in Dr. Su's own
-> work), but it solves the same underlying physics — a relativistic beam
-> driving a wake in a plasma — with genuine macroparticle and field data,
-> not an analytical approximation. See "Honest limitations" below for
+> research), but it solves the same underlying physics — a relativistic
+> beam driving a wake in a plasma — with genuine macroparticle and field
+> data, not an analytical approximation. See "Honest limitations" below for
 > exactly what that does and doesn't mean.
 
-## Motivation
+---
+
+## The idea in one picture
 
 Full PIC simulations of plasma wakefield accelerators are physically
-accurate but computationally expensive. This is a major bottleneck for
-tasks like optimizing beam-loading / transformer ratio over a parameter
-space, scanning bunch length/charge/density for a target design, or running
-iterative design loops that need many evaluations.
+accurate but computationally expensive — a real bottleneck for parameter
+scans, beam-loading optimization, or design iteration. This project trains
+a fast **surrogate model** on a batch of real PIC simulations, so the
+wakefield for a new set of parameters can be predicted almost instantly
+instead of re-simulated.
 
-A common approach in computational science is to train a fast **surrogate
-model** — a machine learning model trained on a set of simulation
-results — that approximates the simulation's output nearly instantly, at
-the cost of some accuracy. This project builds a small, self-contained,
-*and real* version of that idea:
+![Benchmark speedup](figures/06_benchmark_speedup.png)
 
-1. Simulate a plasma wakefield (real FBPIC PIC runs) across a range of
-   (bunch length, bunch charge) combinations.
-2. Train ML surrogates to predict the resulting wakefield from those two
-   inputs alone.
-3. Benchmark the speedup and visualize both the underlying PIC physics and
-   the surrogate's accuracy.
+**~4,400x faster** than running the real simulation, at R² = 0.97-0.98
+accuracy (see [Results](#results-this-run) below).
+
+---
+
+## What this actually does
+
+1. **Simulate** a plasma wakefield with real FBPIC PIC runs, across a range
+   of (bunch length, bunch charge) combinations.
+2. **Train** ML surrogates (Random Forest + neural network) to predict the
+   resulting wakefield from those two inputs alone.
+3. **Benchmark** the speedup and **visualize** both the underlying PIC
+   physics and the surrogate's accuracy.
 
 ## Physics background
 
 `src/fbpic_sim.py` maps two normalized parameters — `kp_sigma_z` (bunch
 length in units of the plasma wavenumber) and `Q_hat` (beam-to-plasma
 density ratio) — onto physical units for a fixed reference plasma density
-(n0 = 1x10^24 m^-3, i.e. 1x10^18 cm^-3, a typical PWFA experimental density),
-then runs a real FBPIC simulation: a relativistic Gaussian electron bunch
-driving a wake through a preformed plasma. The on-axis longitudinal field
-Ez(z) is extracted and re-normalized back into the same dimensionless units
-used throughout the project, so the ML pipeline doesn't care whether the
-data came from an analytical model or a real simulation.
+(n0 = 1x10^24 m^-3, i.e. 1x10^18 cm^-3, a typical PWFA experimental
+density), then runs a real FBPIC simulation: a relativistic Gaussian
+electron bunch driving a wake through a preformed plasma. The on-axis
+longitudinal field Ez(z) is extracted and re-normalized back into the same
+dimensionless units used throughout the project.
 
-`src/physics.py` still contains the original closed-form **linear wakefield
-theory** (Rosenzweig 1988) — kept as an independent analytical check, used
-in figure 1 to confirm the real PIC simulation reproduces the expected
-linear-regime wake shape.
+**Sanity check first** — does the real PIC simulation match known theory
+in the regime where theory is exact?
+
+![Linear theory vs real PIC](figures/01_wakefield_linear_vs_nonlinear.png)
+
+Yes: in the low-charge (linear) regime, the real FBPIC simulation
+reproduces the closed-form linear wakefield theory (Rosenzweig 1988).
+
+As beam charge increases, the wake steepens — the 1D-visible precursor to
+the nonlinear "blowout" regime used in real PWFA designs:
+
+![Wake steepening](figures/02_nonlinear_steepening.png)
+
+And because this is a real PIC code, we get **genuine kinetic diagnostics**
+for free — not just line plots. Here's the actual 2D charge-density
+"bubble" and macroparticle phase space from one simulation:
+
+![Phase space and density](figures/03_phase_space_density.png)
 
 ## What's actually simulated vs. what's ML
 
@@ -67,17 +85,24 @@ linear-regime wake shape.
 
 - **Dataset: 100 real FBPIC simulations** (0 numerically unstable / excluded)
 - Scalar surrogate (peak wakefield amplitude):
-  - **Random Forest: R-squared = 0.968**, MAE = 0.030
-  - **MLP: R-squared = 0.40** — noticeably worse than the Random Forest. With only
+  - **Random Forest: R² = 0.968**, MAE = 0.030
+  - **MLP: R² = 0.40** — noticeably worse than the Random Forest. With only
     ~80 training points, the MLP doesn't have enough data to outperform a
-    bagged tree ensemble. This is a genuine, honest result of training on a
-    *small real dataset* rather than a bug — see "Honest limitations."
+    bagged tree ensemble. A genuine, honest result of a small real dataset,
+    not a bug — see [Honest limitations](#honest-limitations--next-steps).
 - **Full-profile surrogate** (predicts the entire wakefield shape, not just
-  the peak): **R-squared = 0.984**
-- **Surrogate inference is ~4,400x faster** than running the real FBPIC
-  simulation (5.2 sec/query for the simulation vs. 1.2 ms/query for the
-  surrogate — see `results/benchmark.json` and
-  `figures/06_benchmark_speedup.png`)
+  the peak): **R² = 0.984**
+- **Surrogate inference is ~4,400x faster** than the real FBPIC simulation
+  (5.2 sec/query vs. 1.2 ms/query)
+
+<table>
+<tr>
+<td><img src="figures/04_parity_scalar_surrogate.png" alt="Scalar surrogate parity plot"/></td>
+</tr>
+<tr>
+<td><img src="figures/05_profile_surrogate_examples.png" alt="Full profile surrogate examples"/></td>
+</tr>
+</table>
 
 Exact numbers will vary slightly if you regenerate the dataset (different
 random parameter samples) — see `results/metrics.json` after running.
@@ -141,12 +166,14 @@ python visualize.py          # regenerate figures/ (also runs a few extra FBPIC 
 
 ## Figures produced
 
-1. `01_wakefield_linear_vs_nonlinear.png` — sanity check: the real FBPIC simulation matches closed-form linear theory in the low-charge limit.
-2. `02_nonlinear_steepening.png` — real FBPIC-simulated wake steepening as beam charge increases.
-3. `03_phase_space_density.png` — **genuine PIC diagnostics**: a 2D charge-density map (the canonical PWFA "bubble" picture) and a macroparticle longitudinal phase-space scatter plot, both pulled directly from a real FBPIC run.
-4. `04_parity_scalar_surrogate.png` — surrogate-predicted vs. simulated peak wakefield (Random Forest & MLP), on real held-out PIC data.
-5. `05_profile_surrogate_examples.png` — full wakefield shape: surrogate prediction vs. ground-truth PIC simulation, for several held-out test cases.
-6. `06_benchmark_speedup.png` — runtime comparison, real FBPIC simulation vs. surrogate (~4,400x).
+| # | File | What it shows |
+|---|---|---|
+| 1 | `01_wakefield_linear_vs_nonlinear.png` | Sanity check: real FBPIC simulation vs. closed-form linear theory |
+| 2 | `02_nonlinear_steepening.png` | Wake steepening as beam charge increases |
+| 3 | `03_phase_space_density.png` | Real PIC diagnostics: 2D charge-density "bubble" + macroparticle phase space |
+| 4 | `04_parity_scalar_surrogate.png` | Surrogate-predicted vs. simulated peak wakefield (Random Forest & MLP) |
+| 5 | `05_profile_surrogate_examples.png` | Full wakefield shape: surrogate vs. ground-truth PIC, held-out test cases |
+| 6 | `06_benchmark_speedup.png` | Runtime comparison, real simulation vs. surrogate (~4,400x) |
 
 ## Honest limitations / next steps
 
@@ -176,10 +203,10 @@ python visualize.py          # regenerate figures/ (also runs a few extra FBPIC 
   (FBPIC supports CUDA -- set `use_cuda=True`) -- all straightforward next
   steps if this becomes an actual lab project.
 
-## Motivation for this project
+## Motivation
 
 Built as a demonstration of interest in computational plasma physics /
 accelerator science research, connecting a CS/ML background to
-simulation-driven physics research (surrogate modeling for expensive
+simulation-driven physics research: surrogate modeling for expensive
 simulations, applied here to real PIC data rather than a toy analytical
-stand-in).
+stand-in.
